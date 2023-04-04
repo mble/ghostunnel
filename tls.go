@@ -118,10 +118,16 @@ func buildConfig(enabledCipherSuites string) (*tls.Config, error) {
 }
 
 // buildClientConfig builds a tls.Config for clients
-func buildClientConfig(enabledCipherSuites string) (*tls.Config, error) {
-	// At the moment, we don't apply any extra settings on top of the generic
-	// config for client contexts
-	return buildConfig(enabledCipherSuites)
+func buildClientConfig(enabledCipherSuites string, insecureTLS bool) (*tls.Config, error) {
+	cfg, err := buildConfig(enabledCipherSuites)
+	if err != nil {
+		return cfg, err
+	}
+
+	if insecureTLS {
+		cfg.InsecureSkipVerify = true
+	}
+	return cfg, nil
 }
 
 // buildServerConfig builds a tls.Config for servers

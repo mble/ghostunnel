@@ -132,6 +132,10 @@ func (a ACL) VerifyPeerCertificateServer(rawCerts [][]byte, verifiedChains [][]*
 	return errors.New("unauthorized: invalid principal, or principal not allowed")
 }
 
+func (a ACL) NullVerifyPeerCertificate(_ [][]byte, _ [][]*x509.Certificate) error {
+	return nil
+}
+
 // VerifyPeerCertificateClient is an implementation of VerifyPeerCertificate
 // for crypto/tls.Config for clients initiating TLS connections that will
 // validate the server certificate based on the given ACL. If the ACL is empty,

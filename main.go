@@ -104,6 +104,7 @@ var (
 	clientAllowPolicy    = clientCommand.Flag("verify-policy", "Allow passing the location of an OPA rego file").PlaceHolder("POLICY").String()
 	clientAllowQuery     = clientCommand.Flag("verify-query", "Allow defining a query to validate against the client certificate and the rego policy.").PlaceHolder("QUERY").String()
 	clientDisableAuth    = clientCommand.Flag("disable-authentication", "Disable client authentication, no certificate will be provided to the server.").Default("false").Bool()
+	clientInsecureTLS    = clientCommand.Flag("insecure-skip-verify", "Disable certificate verification.").Default("false").Bool()
 
 	// TLS options
 	keystorePath            = app.Flag("keystore", "Path to keystore (combined PEM with cert/key, or PKCS12 keystore).").PlaceHolder("PATH").Envar("KEYSTORE_PATH").String()
@@ -742,7 +743,7 @@ func serverBackendDialer() (func() (net.Conn, error), error) {
 
 // Get backend dialer function in client mode (connecting to a TLS port)
 func clientBackendDialer(tlsConfigSource certloader.TLSConfigSource, network, address, host string) (func() (net.Conn, error), policy.Policy, error) {
-	config, err := buildClientConfig(*enabledCipherSuites)
+	config, err := buildClientConfig(*enabledCipherSuites, *clientInsecureTLS)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -779,7 +780,11 @@ func clientBackendDialer(tlsConfigSource certloader.TLSConfigSource, network, ad
 		OPAQueryTimeout: *timeoutDuration,
 	}
 
-	config.VerifyPeerCertificate = clientACL.VerifyPeerCertificateClient
+	if *clientInsecureTLS {
+		config.VerifyPeerCertificate = clientACL.NullVerifyPeerCertificate
+	} else {
+		config.VerifyPeerCertificate = clientACL.VerifyPeerCertificateClient
+	}
 
 	var dialer Dialer = &net.Dialer{Timeout: *timeoutDuration}
 
@@ -787,7 +792,7 @@ func clientBackendDialer(tlsConfigSource certloader.TLSConfigSource, network, ad
 		logger.Printf("using HTTP(S) CONNECT proxy %s", (*clientConnectProxy).String())
 
 		// Use HTTP CONNECT proxy to connect to target.
-		proxyConfig, err := buildClientConfig(*enabledCipherSuites)
+		proxyConfig, err := buildClientConfig(*enabledCipherSuites, *clientInsecureTLS)
 		if err != nil {
 			return nil, nil, err
 		}
